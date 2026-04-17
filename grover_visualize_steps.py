@@ -96,58 +96,131 @@ def main() -> None:
     plt.close(figure)
     print(f"Сохранено: {output_path}")
 
-    _draw_geometric_sketch(output_directory / "grover_geometry_sketch.png")
+    _draw_geometric_sketch_from_statevectors(
+        [stage_sv for _, stage_sv in stages],
+        output_directory / "grover_geometry_sketch.png",
+    )
 
 
-def _draw_geometric_sketch(output_path: Path) -> None:
-    """Схематичный «поворот» в плоскости Гровера: |ω⟩ и |s'⟩."""
+def grover_plane_coordinates_amplitude_s_prime_omega(state_vector: Statevector) -> tuple[float, float]:
+    """
+    Ортонормированный базис 2D-подпространства Гровера для одной метки |11⟩:
+    |ω⟩ = |11⟩, |s'⟩ = (|00⟩+|01⟩+|10⟩)/√3.
+    Возвращает (⟨s'|ψ⟩, ⟨ω|ψ⟩) — вещественные части (для нашей схемы мнимая часть ~0).
+    """
+    amplitudes = np.asarray(state_vector.data, dtype=np.complex128)
+    if amplitudes.shape != (4,):
+        raise ValueError("Ожидается 2 кубита (4 амплитуды).")
+    amplitude_on_unmarked_uniform = (amplitudes[0] + amplitudes[1] + amplitudes[2]) / np.sqrt(3.0)
+    amplitude_on_marked = amplitudes[3]
+    return float(np.real(amplitude_on_unmarked_uniform)), float(np.real(amplitude_on_marked))
+
+
+def _draw_geometric_sketch_from_statevectors(
+    stage_statevectors: list[Statevector],
+    output_path: Path,
+) -> None:
+    """Стрелки по реальным проекциям |ψ⟩ на плоскость span{|s'⟩, |ω⟩}."""
     configure_matplotlib_cyrillic()
-    figure, axis = plt.subplots(figsize=(6, 5))
+    figure, axis = plt.subplots(figsize=(7.2, 6.0))
 
-    theta = np.linspace(0, 2 * np.pi, 200)
-    axis.plot(np.cos(theta), np.sin(theta), color="#cccccc", linestyle="--", linewidth=1)
-    axis.axhline(0, color="#999999", linewidth=0.8)
-    axis.axvline(0, color="#999999", linewidth=0.8)
+    theta = np.linspace(0, 2 * np.pi, 240)
+    axis.plot(np.cos(theta), np.sin(theta), color="#dddddd", linestyle="--", linewidth=1.2, zorder=0)
+    axis.axhline(0, color="#bbbbbb", linewidth=0.9, zorder=0)
+    axis.axvline(0, color="#bbbbbb", linewidth=0.9, zorder=0)
     axis.set_aspect("equal")
-    axis.set_xlim(-1.35, 1.35)
-    axis.set_ylim(-1.35, 1.35)
-    axis.set_title("Наглядно: одна итерация — поворот ближе к «метке»", fontsize=12, fontweight="bold")
 
-    # |s'⟩ — равномерная суперпозиция непомеченных (2D подпространство), |ω⟩ — помеченное
-    angle_start = np.deg2rad(45)
-    angle_oracle = np.deg2rad(90)
-    axis.annotate(
-        "",
-        xy=(np.cos(angle_oracle), np.sin(angle_oracle)),
-        xytext=(np.cos(angle_start), np.sin(angle_start)),
-        arrowprops=dict(arrowstyle="->", color="#C44E52", lw=2),
+    axis.set_xlabel("⟨s'|ψ⟩ — непомеченные (|00⟩,|01⟩,|10⟩) равномерно", fontsize=10)
+    axis.set_ylabel("⟨ω|ψ⟩,  ω = |11⟩ — метка", fontsize=10)
+    axis.set_title(
+        "Гровер (2 кубита): траектория в плоскости |s'⟩–|ω⟩ (из Statevector)",
+        fontsize=12,
+        fontweight="bold",
     )
-    axis.text(0.72, 0.92, "Оракул:\nфаза метки", fontsize=9, color="#C44E52")
 
-    angle_after_diffuser = np.deg2rad(0)
-    axis.annotate(
-        "",
-        xy=(np.cos(angle_after_diffuser), np.sin(angle_after_diffuser)),
-        xytext=(np.cos(angle_oracle), np.sin(angle_oracle)),
-        arrowprops=dict(arrowstyle="->", color="#4C72B0", lw=2),
+    plane_points: list[tuple[float, float]] = []
+    for stage_vector in stage_statevectors:
+        coordinate_s_prime, coordinate_omega = grover_plane_coordinates_amplitude_s_prime_omega(
+            stage_vector
+        )
+        plane_points.append((coordinate_s_prime, coordinate_omega))
+
+    stage_labels = [
+        "1) после H⊗H\n(|s⟩)",
+        "2) после CZ",
+        "3) после диффузии\n(−|11⟩, та же разметка)",
+    ]
+    colors = ["#333333", "#C44E52", "#4C72B0"]
+    for stage_index, ((coordinate_x, coordinate_y), stage_label, point_color) in enumerate(
+        zip(plane_points, stage_labels, colors, strict=True)
+    ):
+        axis.scatter(
+            [coordinate_x],
+            [coordinate_y],
+            s=70,
+            color=point_color,
+            zorder=3,
+            edgecolors="white",
+            linewidths=1.2,
+        )
+        offset_x = 0.06 if stage_index != 2 else -0.22
+        offset_y = 0.05 if stage_index != 1 else -0.12
+        axis.annotate(
+            f"{stage_label}\n({coordinate_x:.3f}, {coordinate_y:.3f})",
+            (coordinate_x, coordinate_y),
+            textcoords="offset points",
+            xytext=(20 + offset_x * 80, 12 + offset_y * 80),
+            fontsize=8,
+            color=point_color,
+        )
+
+    for segment_index in range(len(plane_points) - 1):
+        start_x, start_y = plane_points[segment_index]
+        end_x, end_y = plane_points[segment_index + 1]
+        arrow_color = "#C44E52" if segment_index == 0 else "#4C72B0"
+        axis.annotate(
+            "",
+            xy=(end_x, end_y),
+            xytext=(start_x, start_y),
+            arrowprops=dict(
+                arrowstyle="->",
+                color=arrow_color,
+                lw=2.2,
+                shrinkA=6,
+                shrinkB=6,
+            ),
+            zorder=2,
+        )
+        caption = "оракул (фаза |11⟩)" if segment_index == 0 else "диффузия"
+        mid_x = (start_x + end_x) / 2
+        mid_y = (start_y + end_y) / 2
+        axis.text(
+            mid_x + 0.06,
+            mid_y + 0.06,
+            caption,
+            fontsize=9,
+            color=arrow_color,
+        )
+
+    # Подсказка: ось x — коэффициент при |s'⟩, ось y — при |ω⟩
+    axis.plot([0, 1.0], [0, 0], color="#55A868", lw=2, alpha=0.35)
+    axis.text(1.02, -0.06, "|s'⟩", fontsize=11, color="#55A868")
+    axis.plot([0, 0], [0, 1.0], color="#8172B2", lw=2, alpha=0.35)
+    axis.text(-0.06, 1.02, "|ω⟩", fontsize=11, color="#8172B2")
+
+    norm_residual = [
+        abs(np.linalg.norm(np.array(point)) - 1.0) for point in plane_points
+    ]
+    caption_footer = (
+        "Точки лежат на единичной окружности: состояние остаётся в плоскости span{|s'⟩,|ω⟩}. "
+        f"Отклонение нормы от 1: max {max(norm_residual):.2e}."
     )
-    axis.text(1.05, 0.05, "Диффузия:\nотражение", fontsize=9, color="#4C72B0")
+    axis.text(0.0, -1.28, caption_footer, ha="center", fontsize=8, style="italic")
 
-    axis.plot([0, np.cos(angle_start)], [0, np.sin(angle_start)], color="#333333", lw=1.5)
-    axis.text(0.55, 0.55, "|s⟩ старт", fontsize=10)
-    axis.plot([0, 1.0], [0, 0], color="#8172B2", lw=2)
-    axis.text(1.08, -0.12, "|ω⟩ метка\n(напр. |11⟩)", fontsize=10, color="#8172B2")
+    margin = 0.22
+    axis.set_xlim(-1.0 - margin, 1.0 + margin)
+    axis.set_ylim(-1.0 - margin, 1.0 + margin)
 
-    axis.set_xticks([])
-    axis.set_yticks([])
-    axis.text(
-        0,
-        -1.2,
-        "Угол поворота за пару шагов ~2/√N; для N=4 одна итерация почти достаточна.",
-        ha="center",
-        fontsize=9,
-        style="italic",
-    )
     figure.tight_layout()
     figure.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close(figure)
