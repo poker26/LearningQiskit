@@ -7,6 +7,7 @@ VQE для молекулы водорода H₂: базис STO-3G, равно
 (совпадает с выводом Qiskit Nature + PySCF).
 
 На Linux можно пересчитать интегралы: python vqe_h2_sto3g.py --use-pyscf
+Схема анзаца в PNG: python vqe_h2_sto3g.py --circuit-only → output/vqe_h2_sto3g_ansatz.png
 
 Минимизируется электронная энергия ⟨H_el⟩ (Hartree); для полной энергии прибавляется
 ядро E_nuc (печатается и линия на графике при желании).
@@ -30,7 +31,7 @@ from h2_sto3g_jordan_wigner_hamiltonian import (
     H2_STO3G_EQUILIBRIUM_NUCLEAR_REPULSION_HARTREE,
     build_h2_sto3g_jordan_wigner_hamiltonian_builtin,
 )
-from ibmq_experiment import configure_utf8_stdout, ensure_output_directory
+from ibmq_experiment import configure_utf8_stdout, ensure_output_directory, save_circuit_figure
 
 
 def configure_matplotlib_cyrillic() -> None:
@@ -151,6 +152,11 @@ def parse_command_line() -> argparse.Namespace:
         default=500,
         help="COBYLA maxiter.",
     )
+    parser.add_argument(
+        "--circuit-only",
+        action="store_true",
+        help="Только PNG схемы анзаца (HF + RealAmplitudes), без гамильтониана и VQE.",
+    )
     return parser.parse_args()
 
 
@@ -163,6 +169,14 @@ def main() -> None:
     configure_utf8_stdout()
     command_line_arguments = parse_command_line()
     output_directory = ensure_output_directory(Path(__file__).resolve().parent)
+
+    if command_line_arguments.circuit_only:
+        ansatz_circuit = build_variational_ansatz_h2()
+        ansatz_circuit.name = "H2_STO3G_JW_HF_RealAmplitudes"
+        ansatz_diagram_path = output_directory / "vqe_h2_sto3g_ansatz.png"
+        save_circuit_figure(ansatz_circuit, ansatz_diagram_path, fold=44)
+        print(f"Схема квантовой части (анзац): {ansatz_diagram_path}")
+        return
 
     nuclear_repulsion_energy = H2_STO3G_EQUILIBRIUM_NUCLEAR_REPULSION_HARTREE
     hamiltonian_source_label = "встроенные коэффициенты (как Nature+PySCF)"
@@ -186,6 +200,11 @@ def main() -> None:
     )
 
     ansatz_circuit = build_variational_ansatz_h2()
+    ansatz_circuit.name = "H2_STO3G_JW_HF_RealAmplitudes"
+    ansatz_diagram_path = output_directory / "vqe_h2_sto3g_ansatz.png"
+    save_circuit_figure(ansatz_circuit, ansatz_diagram_path, fold=44)
+    print(f"Схема квантовой части (анзац): {ansatz_diagram_path}")
+
     estimator = StatevectorEstimator()
     expectation_history: list[float] = []
 

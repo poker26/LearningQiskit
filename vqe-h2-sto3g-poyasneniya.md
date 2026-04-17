@@ -1,6 +1,6 @@
 # VQE для H₂ (STO-3G): шаги, схема и гибридный алгоритм
 
-Скрипты: `vqe_h2_sto3g.py`, коэффициенты Паули: `h2_sto3g_jordan_wigner_hamiltonian.py`. Картинка сходимости: `output/vqe_h2_sto3g_convergence.png`.
+Скрипты: `vqe_h2_sto3g.py`, коэффициенты Паули: `h2_sto3g_jordan_wigner_hamiltonian.py`. Картинка сходимости: `output/vqe_h2_sto3g_convergence.png`. **Схема вентилей квантовой части (HF + RealAmplitudes):** `output/vqe_h2_sto3g_ansatz.png` (команда `python vqe_h2_sto3g.py --circuit-only` или полный прогон VQE).
 
 ## Цель
 

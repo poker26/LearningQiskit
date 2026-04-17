@@ -37,8 +37,9 @@ def save_circuit_figure(
     output_path: Path,
     *,
     style: str = "iqp",
+    fold: int = -1,
 ) -> Path:
-    figure = circuit.draw(output="mpl", style=style, fold=-1)
+    figure = circuit.draw(output="mpl", style=style, fold=fold)
     figure.savefig(output_path, dpi=150, bbox_inches="tight")
     figure.clear()
     return output_path

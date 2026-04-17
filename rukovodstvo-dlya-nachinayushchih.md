@@ -109,9 +109,10 @@ python vqe_toy_zz.py
 ```text
 python vqe_h2_sto3g.py
 python vqe_h2_sto3g.py --use-pyscf
+python vqe_h2_sto3g.py --circuit-only
 ```
 
-Картинка: `output/vqe_h2_sto3g_convergence.png`. Подробный разбор шагов и гибридного цикла: **`vqe-h2-sto3g-poyasneniya.md`**.
+Картинки: `output/vqe_h2_sto3g_convergence.png`, схема анзаца `output/vqe_h2_sto3g_ansatz.png`. Подробный разбор: **`vqe-h2-sto3g-poyasneniya.md`**.
 
 ---
 
