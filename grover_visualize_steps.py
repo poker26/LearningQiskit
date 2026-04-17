@@ -1,5 +1,6 @@
 """
 Рисует эволюцию вероятностей базисных состояний в 2-кубитном Гровере (метка |11⟩).
+Дополнительно: амплитуды и «инверсия относительно среднего» для шага диффузии.
 Сохраняет PNG в output/ — удобно для комикса или слайдов.
 """
 
@@ -31,6 +32,14 @@ def basis_probability_vector(state_vector: Statevector) -> tuple[list[str], np.n
     probability_by_label = state_vector.probabilities_dict()
     probability_array = np.array([float(probability_by_label.get(label, 0.0)) for label in basis_labels])
     return basis_labels, probability_array
+
+
+def computational_basis_amplitudes_real(state_vector: Statevector) -> np.ndarray:
+    """Амплитуды в порядке |00⟩,|01⟩,|10⟩,|11⟩; для нашей схемы достаточно вещественной части."""
+    complex_amplitudes = np.asarray(state_vector.data, dtype=np.complex128)
+    if complex_amplitudes.shape != (4,):
+        raise ValueError("Ожидается 2 кубита (4 амплитуды).")
+    return np.real(complex_amplitudes)
 
 
 def configure_matplotlib_cyrillic() -> None:
@@ -100,6 +109,189 @@ def main() -> None:
         [stage_sv for _, stage_sv in stages],
         output_directory / "grover_geometry_sketch.png",
     )
+
+    _draw_diffusion_amplitude_story(
+        output_directory / "grover_diffusion_amplitudes.png",
+    )
+
+
+def _draw_diffusion_amplitude_story(output_path: Path) -> None:
+    """
+    Три кадра: равные амплитуды; оракул (знак у метки); диффузия как отражение относительно ā после оракула.
+    """
+    configure_matplotlib_cyrillic()
+
+    state_after_hadamards = Statevector(build_grover_prefix(with_oracle=False, with_diffuser=False))
+    state_after_oracle = Statevector(build_grover_prefix(with_oracle=True, with_diffuser=False))
+    state_after_diffusion = Statevector(build_grover_prefix(with_oracle=True, with_diffuser=True))
+
+    amplitudes_uniform = computational_basis_amplitudes_real(state_after_hadamards)
+    amplitudes_oracle = computational_basis_amplitudes_real(state_after_oracle)
+    amplitudes_diffused = computational_basis_amplitudes_real(state_after_diffusion)
+
+    mean_after_uniform = float(np.mean(amplitudes_uniform))
+    mean_after_oracle = float(np.mean(amplitudes_oracle))
+    amplitudes_predicted_by_inversion = 2.0 * mean_after_oracle - amplitudes_oracle
+    max_residual = float(np.max(np.abs(amplitudes_diffused - amplitudes_predicted_by_inversion)))
+
+    basis_tick_labels = [r"$|00\rangle$", r"$|01\rangle$", r"$|10\rangle$", r"$|11\rangle$"]
+    bar_index_array = np.arange(4)
+    unmarked_bar_color = "#4C72B0"
+    marked_bar_color = "#8172B2"
+
+    def bar_colors_for_amplitudes(amplitude_array: np.ndarray) -> list[str]:
+        return [
+            marked_bar_color if basis_index == 3 else unmarked_bar_color
+            for basis_index in range(amplitude_array.shape[0])
+        ]
+
+    figure, axes = plt.subplots(1, 3, figsize=(13.5, 4.6))
+    figure.suptitle(
+        "Диффузия в Гровере (2 кубита): амплитуды и инверсия относительно среднего после оракула",
+        fontsize=13,
+        fontweight="bold",
+    )
+
+    axis_uniform, axis_oracle, axis_diffusion = axes
+
+    bar_container_uniform = axis_uniform.bar(
+        bar_index_array,
+        amplitudes_uniform,
+        color=bar_colors_for_amplitudes(amplitudes_uniform),
+        edgecolor="white",
+        linewidth=0.8,
+    )
+    axis_uniform.axhline(
+        mean_after_uniform,
+        color="#C44E52",
+        linestyle="--",
+        linewidth=2,
+        label=rf"$\bar a = {mean_after_uniform:.2f}$",
+    )
+    axis_uniform.set_title("Шаг 1: после $H^{\\otimes 2}$\nвсе амплитуды равны", fontsize=11)
+    axis_uniform.set_ylabel("Амплитуда (Re)")
+    axis_uniform.set_xticks(bar_index_array)
+    axis_uniform.set_xticklabels(basis_tick_labels)
+    axis_uniform.legend(loc="upper right", fontsize=9)
+    axis_uniform.set_ylim(0, 0.62)
+    for bar_handle, amplitude_value in zip(bar_container_uniform, amplitudes_uniform, strict=True):
+        axis_uniform.text(
+            bar_handle.get_x() + bar_handle.get_width() / 2,
+            bar_handle.get_height() + 0.02,
+            f"{amplitude_value:.2f}",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+        )
+
+    bar_container_oracle = axis_oracle.bar(
+        bar_index_array,
+        amplitudes_oracle,
+        color=bar_colors_for_amplitudes(amplitudes_oracle),
+        edgecolor="white",
+        linewidth=0.8,
+    )
+    axis_oracle.axhline(
+        mean_after_oracle,
+        color="#C44E52",
+        linestyle="--",
+        linewidth=2,
+        label=rf"новое $\bar a = {mean_after_oracle:.2f}$",
+    )
+    axis_oracle.set_title("Шаг 2: оракул $CZ$\nфаза $-1$ у $|11\\rangle$", fontsize=11)
+    axis_oracle.set_xticks(bar_index_array)
+    axis_oracle.set_xticklabels(basis_tick_labels)
+    axis_oracle.legend(loc="upper right", fontsize=9)
+    axis_oracle.axhline(0.0, color="#bbbbbb", linewidth=0.9)
+    axis_oracle.set_ylim(-0.62, 0.62)
+    for bar_handle, amplitude_value in zip(bar_container_oracle, amplitudes_oracle, strict=True):
+        vertical_offset = 0.03 if amplitude_value >= 0 else -0.08
+        vertical_alignment = "bottom" if amplitude_value >= 0 else "top"
+        axis_oracle.text(
+            bar_handle.get_x() + bar_handle.get_width() / 2,
+            amplitude_value + vertical_offset,
+            f"{amplitude_value:.2f}",
+            ha="center",
+            va=vertical_alignment,
+            fontsize=9,
+        )
+
+    grouped_bar_width = 0.36
+    _ = axis_diffusion.bar(
+        bar_index_array - grouped_bar_width / 2,
+        amplitudes_oracle,
+        width=grouped_bar_width,
+        color=bar_colors_for_amplitudes(amplitudes_oracle),
+        alpha=0.45,
+        edgecolor="white",
+        linewidth=0.6,
+        label="после оракула",
+    )
+    bar_container_after_diffuser = axis_diffusion.bar(
+        bar_index_array + grouped_bar_width / 2,
+        amplitudes_diffused,
+        width=grouped_bar_width,
+        color=bar_colors_for_amplitudes(amplitudes_diffused),
+        alpha=1.0,
+        edgecolor="white",
+        linewidth=0.6,
+        label="после диффузии",
+    )
+    axis_diffusion.axhline(
+        mean_after_oracle,
+        color="#C44E52",
+        linestyle="--",
+        linewidth=2,
+        label=rf"ось отражения: $\bar a={mean_after_oracle:.2f}$",
+    )
+    axis_diffusion.set_title(
+        "Шаг 3: диффузия\n$a_i \\to 2\\bar a - a_i$ (это и есть диффузия)",
+        fontsize=11,
+    )
+    axis_diffusion.set_xticks(bar_index_array)
+    axis_diffusion.set_xticklabels(basis_tick_labels)
+    axis_diffusion.legend(loc="upper left", fontsize=8)
+    axis_diffusion.axhline(0.0, color="#bbbbbb", linewidth=0.9)
+    axis_diffusion.set_ylim(-1.08, 1.08)
+
+    marked_basis_index = 3
+    axis_diffusion.annotate(
+        "",
+        xy=(
+            marked_basis_index + grouped_bar_width / 2,
+            amplitudes_diffused[marked_basis_index],
+        ),
+        xytext=(
+            marked_basis_index - grouped_bar_width / 2,
+            amplitudes_oracle[marked_basis_index],
+        ),
+        arrowprops=dict(arrowstyle="->", color="#222222", lw=1.8, shrinkA=4, shrinkB=4),
+    )
+    axis_diffusion.text(
+        2.55,
+        0.35,
+        "отражение\nотносительно $\\bar a$",
+        fontsize=9,
+        color="#222222",
+    )
+
+    figure.text(
+        0.5,
+        0.02,
+        (
+            "Вероятности на шагах 1 и 2 совпадают ($|a|^2$), меняется фаза у метки. "
+            "Диффузия использует $\\bar a$ после оракула. "
+            f"Проверка $a' = 2\\bar a - a$: max $|\\Delta| \\approx {max_residual:.1e}$."
+        ),
+        ha="center",
+        fontsize=8,
+        style="italic",
+    )
+
+    figure.tight_layout(rect=(0, 0.06, 1, 0.94))
+    figure.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(figure)
+    print(f"Сохранено: {output_path}")
 
 
 def grover_plane_coordinates_amplitude_s_prime_omega(state_vector: Statevector) -> tuple[float, float]:
