@@ -43,6 +43,13 @@ def parse_command_line() -> argparse.Namespace:
         default=1024,
         help="Shots для IBM и для Aer в режиме сравнения.",
     )
+    parser.add_argument(
+        "--optimization-level",
+        type=int,
+        choices=[0, 1, 2, 3],
+        default=1,
+        help="Уровень оптимизации транспиляции (0–3).",
+    )
     return parser.parse_args()
 
 
@@ -79,6 +86,7 @@ def main() -> None:
             shot_count,
             command_line_arguments.backend,
             min_num_qubits=3,
+            optimization_level=command_line_arguments.optimization_level,
         )
         print(f"IBM {backend_label}, shots={shot_count}: {hardware_counts}")
 

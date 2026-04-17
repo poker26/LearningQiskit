@@ -73,6 +73,8 @@ def run_on_ibm_quantum_hardware(
     min_num_qubits: int,
     optimization_level: int = 1,
 ) -> tuple[dict[str, int], str]:
+    if optimization_level not in {0, 1, 2, 3}:
+        raise ValueError("optimization_level должен быть 0, 1, 2 или 3.")
     from qiskit_ibm_runtime import QiskitRuntimeService, SamplerV2
 
     quantum_channel = "ibm_quantum_platform"
