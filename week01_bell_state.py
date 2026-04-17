@@ -10,11 +10,18 @@ import os
 import sys
 from pathlib import Path
 
-from dotenv import load_dotenv
 from qiskit import QuantumCircuit
-from qiskit.transpiler import generate_preset_pass_manager
 from qiskit.visualization import plot_histogram
 from qiskit_aer import AerSimulator
+
+from ibmq_experiment import (
+    configure_utf8_stdout,
+    ensure_output_directory,
+    load_dotenv_from_project,
+    run_on_ibm_quantum_hardware,
+    run_shot_statistics_on_aer,
+    save_circuit_figure,
+)
 
 
 def build_bell_state_circuit() -> QuantumCircuit:
@@ -24,75 +31,6 @@ def build_bell_state_circuit() -> QuantumCircuit:
     bell_circuit.measure([0, 1], [0, 1])
     bell_circuit.name = "bell_phi_plus"
     return bell_circuit
-
-
-def ensure_output_directory() -> Path:
-    project_root = Path(__file__).resolve().parent
-    output_directory = project_root / "output"
-    output_directory.mkdir(parents=True, exist_ok=True)
-    return output_directory
-
-
-def save_circuit_diagram(bell_circuit: QuantumCircuit, output_directory: Path) -> Path:
-    diagram_path = output_directory / "week01_bell_circuit.png"
-    figure = bell_circuit.draw(output="mpl", style="iqp", fold=-1)
-    figure.savefig(diagram_path, dpi=150, bbox_inches="tight")
-    figure.clear()
-    return diagram_path
-
-
-def run_shot_statistics_on_aer(
-    bell_circuit: QuantumCircuit,
-    aer_backend: AerSimulator,
-    shot_count: int,
-) -> dict[str, int]:
-    simulation_job = aer_backend.run(bell_circuit, shots=shot_count)
-    measurement_result = simulation_job.result()
-    return measurement_result.get_counts()
-
-
-def extract_counts_from_sampler_result(pub_result) -> dict[str, int]:
-    register_names = list(pub_result.data)
-    if not register_names:
-        raise ValueError("В результате Sampler нет классических регистров.")
-    if len(register_names) == 1:
-        measurement_bit_array = pub_result.data[register_names[0]]
-    else:
-        measurement_bit_array = pub_result.join_data(register_names)
-    return measurement_bit_array.get_counts()
-
-
-def run_on_ibm_quantum_hardware(
-    bell_circuit: QuantumCircuit,
-    shot_count: int,
-    backend_name: str | None,
-) -> tuple[dict[str, int], str]:
-    from qiskit_ibm_runtime import QiskitRuntimeService, SamplerV2
-
-    quantum_channel = "ibm_quantum_platform"
-    runtime_service = QiskitRuntimeService(channel=quantum_channel)
-
-    if backend_name:
-        selected_backend = runtime_service.backend(backend_name)
-    else:
-        selected_backend = runtime_service.least_busy(
-            min_num_qubits=2,
-            operational=True,
-            simulator=False,
-        )
-
-    pass_manager = generate_preset_pass_manager(
-        optimization_level=1,
-        target=selected_backend.target,
-    )
-    circuit_for_backend = pass_manager.run(bell_circuit)
-
-    sampler = SamplerV2(mode=selected_backend)
-    runtime_job = sampler.run([circuit_for_backend], shots=shot_count)
-    print(f"Задание IBM Quantum: job_id={runtime_job.job_id()}, backend={selected_backend.name}")
-    primitive_result = runtime_job.result()
-    hardware_counts = extract_counts_from_sampler_result(primitive_result[0])
-    return hardware_counts, selected_backend.name
 
 
 def parse_command_line() -> argparse.Namespace:
@@ -119,20 +57,22 @@ def parse_command_line() -> argparse.Namespace:
 
 
 def main() -> None:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
+    configure_utf8_stdout()
 
     command_line_arguments = parse_command_line()
 
     project_root = Path(__file__).resolve().parent
-    load_dotenv(dotenv_path=project_root / ".env")
+    load_dotenv_from_project(project_root)
 
-    output_directory = ensure_output_directory()
+    output_directory = ensure_output_directory(project_root)
     bell_circuit = build_bell_state_circuit()
 
     print(bell_circuit.draw(output="text"))
 
-    diagram_path = save_circuit_diagram(bell_circuit, output_directory)
+    diagram_path = save_circuit_figure(
+        bell_circuit,
+        output_directory / "week01_bell_circuit.png",
+    )
     print(f"Схема сохранена: {diagram_path}")
 
     aer_backend = AerSimulator()
@@ -157,6 +97,7 @@ def main() -> None:
             bell_circuit,
             comparison_shot_count,
             command_line_arguments.backend,
+            min_num_qubits=2,
         )
         print(f"IBM {hardware_backend_label}, shots={comparison_shot_count}: {hardware_counts}")
 
