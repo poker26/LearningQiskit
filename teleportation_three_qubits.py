@@ -1,6 +1,6 @@
 """
-Квантовая телепортация |+⟩ с q0 на q2 (классическая связь через измерения Алисы и if_test).
-На Aer ожидается ~равные доли 0/1 на измерении q2 (состояние |+⟩).
+Квантовая телепортация |1⟩ с q0 на q2 (классика Алисы + if_test у Боба).
+На Aer измерение Боба в базисе Z даёт почти всегда «1»; на железе возможны единичные «0» из‑за шума.
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ def build_teleportation_circuit() -> QuantumCircuit:
         classical_bob,
     )
 
-    circuit.h(0)
+    circuit.x(0)
     circuit.h(1)
     circuit.cx(1, 2)
     circuit.cx(0, 1)
@@ -48,17 +48,27 @@ def build_teleportation_circuit() -> QuantumCircuit:
     with circuit.if_test((classical_alice_x, 1)):
         circuit.x(2)
     circuit.measure(2, classical_bob)
-    circuit.name = "teleport_plus_to_q2"
+    circuit.name = "teleport_one_to_q2"
     return circuit
 
 
 def marginal_bob_outcome_counts(joint_counts: dict[str, int]) -> dict[str, int]:
+    """
+    Бит Боба — первый в развёртке: Aer часто даёт «bob m_alice_x m_alice_z» с пробелами,
+    Sampler на железе — ту же тройку слитно «101» (тот же порядок символов).
+    """
     bob_totals: defaultdict[str, int] = defaultdict(int)
     for outcome_label, occurrence_count in joint_counts.items():
-        parts = outcome_label.split()
-        if len(parts) < 2:
-            raise ValueError(f"Неожиданный формат исхода: {outcome_label!r}")
-        bob_bit_label = parts[-1]
+        label_stripped = outcome_label.strip()
+        if " " in label_stripped:
+            parts = label_stripped.split()
+            if len(parts) < 3:
+                raise ValueError(f"Неожиданный формат исхода: {outcome_label!r}")
+            bob_bit_label = parts[0]
+        else:
+            if len(label_stripped) != 3 or not set(label_stripped) <= {"0", "1"}:
+                raise ValueError(f"Неожиданный формат исхода: {outcome_label!r}")
+            bob_bit_label = label_stripped[0]
         bob_totals[bob_bit_label] += occurrence_count
     return dict(bob_totals)
 
