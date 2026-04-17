@@ -174,36 +174,47 @@ def main() -> None:
 
     inset_axis = inset_axes(
         axis,
-        width="44%",
-        height="42%",
-        loc="upper right",
-        borderpad=1.2,
+        width="36%",
+        height="46%",
+        loc="lower right",
+        borderpad=0.9,
     )
     bar_heights = [
         max(grover_oracle_queries_at_peak, 1),
         max(classical_worst_case_queries, 1),
     ]
     bar_colors = ["#4C72B0", "#C44E52"]
-    row_positions = np.arange(2)
-    inset_axis.barh(row_positions, bar_heights, color=bar_colors, height=0.55, align="center")
-    inset_axis.set_xscale("log")
-    inset_axis.set_yticks(row_positions)
-    inset_axis.set_yticklabels(
-        [
-            rf"Гровер: $k={grover_oracle_queries_at_peak}$",
-            rf"Классика: $N={classical_worst_case_queries}$",
-        ],
-        fontsize=8,
+    column_positions = np.array([0.0, 1.0])
+    bar_width = 0.55
+    inset_axis.bar(
+        column_positions,
+        bar_heights,
+        width=bar_width,
+        color=bar_colors,
+        align="center",
     )
-    inset_axis.set_xlabel("Запросов к $f$ (лог. шкала)", fontsize=8)
+    inset_axis.set_yscale("log")
+    inset_axis.set_xticks(column_positions)
+    inset_axis.set_xticklabels(
+        [
+            rf"Гровер\n$k={grover_oracle_queries_at_peak}$",
+            rf"Классика\n$N={classical_worst_case_queries}$",
+        ],
+        fontsize=7,
+    )
+    inset_axis.set_ylabel("Запросов к $f$ (лог. шкала)", fontsize=8)
     inset_axis.set_title("Худший случай классики vs пик Гровера", fontsize=9, fontweight="bold")
-    inset_axis.grid(True, axis="x", alpha=0.3)
-    for row_index, bar_value in enumerate(bar_heights):
+    inset_axis.grid(True, axis="y", alpha=0.3)
+    inset_axis.set_xlim(-0.55, 1.55)
+    y_top = max(bar_heights) * 1.35
+    inset_axis.set_ylim(min(bar_heights) * 0.82, y_top)
+    for column_index, bar_value in enumerate(bar_heights):
         inset_axis.text(
-            bar_value * 1.08,
-            row_index,
+            column_positions[column_index],
+            bar_value * 1.12,
             f"{bar_value}",
-            va="center",
+            ha="center",
+            va="bottom",
             fontsize=8,
             color="#333333",
         )
