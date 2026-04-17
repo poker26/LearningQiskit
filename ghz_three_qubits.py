@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import sys
 from pathlib import Path
 
 from qiskit import QuantumCircuit
