@@ -85,7 +85,10 @@ python teleportation_three_qubits.py --ibm
 ```text
 python grover_two_qubits.py
 python grover_two_qubits.py --ibm
+python grover_visualize_steps.py
 ```
+
+Картинки по шагам (вероятности базисов и схематичная геометрия): `output/grover_probability_steps.png`, `output/grover_geometry_sketch.png`.
 
 ---
 
