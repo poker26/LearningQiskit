@@ -111,7 +111,7 @@ python vqe_h2_sto3g.py
 python vqe_h2_sto3g.py --use-pyscf
 ```
 
-Картинка: `output/vqe_h2_sto3g_convergence.png`.
+Картинка: `output/vqe_h2_sto3g_convergence.png`. Подробный разбор шагов и гибридного цикла: **`vqe-h2-sto3g-poyasneniya.md`**.
 
 ---
 
