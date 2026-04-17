@@ -8,10 +8,13 @@
 |------|------------|
 | `grover_two_qubits.py` | Сборка цепи, запуск Aer / опционально IBM |
 | `grover_visualize_steps.py` | PNG с вероятностями, геометрией плоскости Гровера, амплитудами диффузии |
+| `grover_six_qubits_aer_iterations.py` | 6 кубитов, N=64: график **P(метка)** vs **k** (Statevector); эвристика **(π/4)√N** |
 | `output/grover_two_qubits_circuit.png` | Диаграмма цепи (стиль Qiskit `iqp`) |
 | `output/grover_probability_steps.png` | Вероятности базисов после H⊗H, после оракула, после диффузии |
 | `output/grover_geometry_sketch.png` | Траектория в плоскости **\(|s'\rangle\)–\(|\omega\rangle\)** по `Statevector` |
 | `output/grover_diffusion_amplitudes.png` | Амплитуды и среднее: наглядная **инверсия относительно \(\bar a\)** после оракула |
+| `output/grover_6q_iterations_aer.png` | Вероятность метки \(|111111\rangle\) vs число итераций + теория \(\sin^2((2k+1)\theta)\) |
+| `output/grover_histogram_aer.png` / `grover_histogram_aer_vs_ibmq.png` | Гистограммы 2-кубитного Гровера (Aer или Aer vs IBM) |
 
 ## Проход по алгоритму (кратко)
 
@@ -74,4 +77,10 @@
 python grover_visualize_steps.py
 ```
 
-Схема цепи Гровера сохраняется при запуске `python grover_two_qubits.py` (см. вывод скрипта и `output/grover_two_qubits_circuit.png`).
+```text
+python grover_six_qubits_aer_iterations.py
+```
+
+Опции: `--max-iterations 20`, `--output путь\к.png`.
+
+Схема цепи Гровера (2 кубита) сохраняется при запуске `python grover_two_qubits.py` (см. вывод и `output/grover_two_qubits_circuit.png`). Сравнение с железом: `python grover_two_qubits.py --ibm` (нужен токен в `.env`).

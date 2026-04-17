@@ -2,6 +2,13 @@
 Grover на 2 кубитах: поиск помеченного состояния |11⟩ (одна итерация).
 Оракул: фазовый сдвиг π на |11⟩ (CZ). Диффузия — явная 2-кубитная схема (см. append_two_qubit_diffuser).
 Визуализация вероятностей по шагам: grover_visualize_steps.py.
+
+Запуск:
+- только Aer (гистограмма в output/grover_histogram_aer.png):
+  python grover_two_qubits.py
+- Aer + IBM Quantum, сравнение гистограмм (нужен QISKIT_IBM_TOKEN в .env):
+  python grover_two_qubits.py --ibm
+  опционально: --backend ИМЯ --shots-ibm 1024 --optimization-level 1
 """
 
 from __future__ import annotations
